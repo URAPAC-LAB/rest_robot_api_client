@@ -174,8 +174,7 @@ The zoom level ranges from 70% to 180% in 10% steps and is saved across sessions
 | [`index.html`](./index.html) | The application — open in any modern browser |
 | [`rest-_robotapi client-user-manual.docx`](./rest-_robotapi%20client-user-manual.docx) | Full user manual (Word document) |
 
-A live, hosted version is available via GitHub Pages:
-**https://rando5701.github.io/rest_robot_api_client/**
+
 
 ---
 
