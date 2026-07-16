@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REST Client</title>
+<style>
+/* ── Variables ─────────────────────────────────────────── */
+:root {
+  --bg-app:    #1a1d23;
+  --bg-panel:  #23272f;
+  --bg-input:  #2c313a;
+  --bg-hover:  #313740;
+  --bg-active: #3a4150;
+  --border:    #3a3f4b;
+  --border-focus: #5b6575;
+  --text-primary:   #e8eaf0;
+  --text-secondary: #8b92a0;
+  --text-muted:     #565d6e;
+  --get:    #61affe;
+  --post:   #49cc90;
+  --put:    #fca130;
+  --patch:  #50e3c2;
+  --delete: #f93e3e;
+  --ok:     #49cc90;
+  --redir:  #fca130;
+  --err:    #f93e3e;
+  --radius: 5px;
+  --topbar-h: 52px;
+  --sidebar-w: 210px;
+  /* JSON syntax */
+  --jt-key:    #79b8ff;
+  --jt-str:    #9ecbff;
+  --jt-num:    #f8c555;
+  --jt-bool:   #f97583;
+  --jt-null:   #f97583;
+}
+body.light {
+  --bg-app:    #f0f2f5;
+  --bg-panel:  #ffffff;
+  --bg-input:  #f7f8fa;
+  --bg-hover:  #eaecf0;
+  --bg-active: #dde1e8;
+  --border:    #d0d4db;
+  --border-focus: #8b92a0;
+  --text-primary:   #1a1d23;
+  --text-secondary: #4a5160;
+  --text-muted:     #8b92a0;
+  --jt-key:  #0550ae;
+  --jt-str:  #0a3069;
+  --jt-num:  #953800;
+  --jt-bool: #cf222e;
+  --jt-null: #cf222e;
+}
+
+/* ── Reset ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; background: var(--bg-app); color: var(--text-primary); overflow: hidden; }
+
+/* ── Topbar ─────────────────────────────────────────────── */
+#topbar {
+  height: var(--topbar-h);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  flex-shrink: 0;
+}
+#logo { font-weight: 700; font-size: 15px; color: var(--text-primary); letter-spacing: .4px; margin-right: 4px; white-space: nowrap; }
+#logo span { color: var(--post); }
+
+#method-select {
+  height: 34px; padding: 0 8px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--text-primary); font-size: 12px; font-weight: 600;
+  cursor: pointer; outline: none; flex-shrink: 0;
+  border-left: 3px solid var(--get);
+}
+#method-select.method-get    { border-left-color: var(--get); }
+#method-select.method-post   { border-left-color: var(--post); }
+#method-select.method-put    { border-left-color: var(--put); }
+#method-select.method-patch  { border-left-color: var(--patch); }
+#method-select.method-delete { border-left-color: var(--delete); }
+
+#url-input {
+  flex: 1; height: 34px; padding: 0 10px;
+  border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--bg-input); color: var(--text-primary);
+  font-size: 13px; outline: none; min-width: 0;
+}
+#url-input:focus { border-color: var(--border-focus); }
+#url-input::placeholder { color: var(--text-muted); }
+
+#send-btn {
+  height: 34px; padding: 0 18px; border-radius: var(--radius);
+  border: none; background: var(--post); color: #fff;
+  font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0;
+  transition: opacity .15s;
+}
+#send-btn:hover { opacity: .85; }
+#send-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+#theme-btn {
+  height: 30px; width: 30px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--text-secondary); cursor: pointer; font-size: 15px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+#theme-btn:hover { background: var(--bg-hover); }
+#font-dec-btn, #font-inc-btn {
+  height: 30px; padding: 0 8px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--text-secondary); cursor: pointer; font-size: 11px; font-weight: 600; flex-shrink: 0;
+}
+#font-dec-btn:hover, #font-inc-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* ── Main layout ─────────────────────────────────────────── */
+#main {
+  display: flex;
+  height: calc(100vh - var(--topbar-h));
+  overflow: hidden;
+}
+
+/* ── Sidebars ─────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#examples-panel { border-right: none; border-left: 1px solid var(--border); }
+
+.sidebar-title {
+  padding: 10px 12px 8px;
+  font-size: 10px; font-weight: 700; letter-spacing: .8px;
+  color: var(--text-muted); text-transform: uppercase;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sidebar-title button {
+  font-size: 10px; padding: 2px 6px; border-radius: 3px;
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--text-secondary); cursor: pointer;
+  text-transform: none; letter-spacing: 0; font-weight: 500;
+}
+.sidebar-title button:hover { background: var(--bg-hover); }
+
+.sidebar-body { flex: 1; overflow-y: auto; padding: 4px 0; }
+.sidebar-body::-webkit-scrollbar { width: 5px; }
+.sidebar-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.hist-item {
+  padding: 7px 12px; cursor: pointer; border-left: 3px solid transparent;
+  transition: background .1s;
+}
+.hist-item:hover { background: var(--bg-hover); }
+.hist-item .hi-method { font-size: 10px; font-weight: 700; margin-bottom: 2px; }
+.hist-item .hi-url { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hi-get    { color: var(--get); border-left-color: var(--get) !important; }
+.hi-post   { color: var(--post); border-left-color: var(--post) !important; }
+.hi-put    { color: var(--put); border-left-color: var(--put) !important; }
+.hi-patch  { color: var(--patch); border-left-color: var(--patch) !important; }
+.hi-delete { color: var(--delete); border-left-color: var(--delete) !important; }
+
+.sidebar-empty { padding: 16px 12px; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+
+/* Collections */
+.coll-group { border-bottom: 1px solid var(--border); }
+.coll-group summary {
+  padding: 8px 12px; font-size: 11px; font-weight: 600;
+  color: var(--text-secondary); cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: 6px;
+  user-select: none;
+}
+.coll-group summary::-webkit-details-marker { display: none; }
+.coll-group summary::before { content: '▶'; font-size: 8px; color: var(--text-muted); transition: transform .15s; }
+.coll-group[open] summary::before { transform: rotate(90deg); }
+.coll-group summary:hover { background: var(--bg-hover); }
+.coll-item {
+  padding: 6px 12px 6px 26px; font-size: 11px;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  color: var(--text-secondary);
+}
+.coll-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.coll-item .ci-method { font-size: 9px; font-weight: 700; min-width: 38px; }
+
+/* ── Workspace ─────────────────────────────────────────── */
+#workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Panels ─────────────────────────────────────────────── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+#req-panel { border-bottom: 1px solid var(--border); max-height: 45%; min-height: 120px; }
+#res-panel { background: var(--bg-app); }
+
+/* ── Tab bar ─────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  padding: 0 12px;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.tab {
+  padding: 8px 14px; font-size: 12px; font-weight: 500;
+  border: none; background: none; color: var(--text-secondary);
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: color .1s;
+}
+.tab:hover { color: var(--text-primary); }
+.tab.active { color: var(--text-primary); border-bottom-color: var(--post); }
+
+.tab-bar-spacer { flex: 1; }
+
+/* ── Tab panes ─────────────────────────────────────────── */
+.tab-pane { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+.tab-pane.active { display: flex; }
+
+/* ── Headers editor ─────────────────────────────────────── */
+#tab-headers {
+  padding: 8px 12px; overflow-y: auto; gap: 4px;
+  background: var(--bg-panel);
+}
+#tab-headers::-webkit-scrollbar { width: 5px; }
+#tab-headers::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.hdr-row { display: flex; gap: 6px; align-items: center; }
+.hdr-row input {
+  flex: 1; height: 28px; padding: 0 8px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--text-primary); font-size: 12px; outline: none; min-width: 0;
+}
+.hdr-row input:focus { border-color: var(--border-focus); }
+.hdr-row input::placeholder { color: var(--text-muted); }
+.hdr-remove {
+  width: 22px; height: 22px; border-radius: 3px;
+  border: none; background: none; color: var(--text-muted);
+  cursor: pointer; font-size: 14px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.hdr-remove:hover { color: var(--err); background: var(--bg-hover); }
+#add-header-btn {
+  margin-top: 4px; padding: 4px 10px; border-radius: var(--radius);
+  border: 1px dashed var(--border); background: none;
+  color: var(--text-secondary); font-size: 11px; cursor: pointer;
+  align-self: flex-start;
+}
+#add-header-btn:hover { border-color: var(--border-focus); color: var(--text-primary); }
+
+/* ── Body editor ─────────────────────────────────────────── */
+#tab-body { background: var(--bg-panel); padding: 8px 12px; }
+#body-input {
+  flex: 1; resize: none; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--text-primary); font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px; padding: 8px; outline: none; line-height: 1.5;
+}
+#body-input:focus { border-color: var(--border-focus); }
+#body-input::placeholder { color: var(--text-muted); }
+#body-hint { font-size: 10px; color: var(--text-muted); margin-top: 4px; flex-shrink: 0; }
+
+/* ── Response panel ─────────────────────────────────────── */
+#res-statusbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 14px; height: 38px;
+  background: var(--bg-panel); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#res-status {
+  font-size: 12px; font-weight: 700; padding: 2px 8px;
+  border-radius: 3px; background: var(--bg-input);
+}
+#res-status.ok     { color: var(--ok);    background: rgba(73,204,144,.12); }
+#res-status.redir  { color: var(--redir); background: rgba(252,161,48,.12); }
+#res-status.err    { color: var(--err);   background: rgba(249,62,62,.12); }
+#res-time { font-size: 11px; color: var(--text-secondary); }
+#res-type { font-size: 10px; color: var(--text-muted); font-weight: 600; letter-spacing: .5px; }
+#copy-btn {
+  margin-left: auto; height: 26px; padding: 0 10px;
+  border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--bg-input); color: var(--text-secondary);
+  font-size: 11px; cursor: pointer;
+}
+#copy-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+#copy-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+#res-panel .tab-bar { background: var(--bg-panel); }
+#tab-res-body {
+  overflow: auto; padding: 12px 16px; background: var(--bg-app);
+}
+#tab-res-body::-webkit-scrollbar { width: 6px; height: 6px; }
+#tab-res-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#res-body-pre {
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px; line-height: 1.6; white-space: pre-wrap;
+  word-break: break-all; color: var(--text-primary);
+}
+/* JSON syntax colors */
+.jt-key  { color: var(--jt-key); }
+.jt-str  { color: var(--jt-str); }
+.jt-num  { color: var(--jt-num); }
+.jt-bool { color: var(--jt-bool); }
+.jt-null { color: var(--jt-null); }
+
+#tab-res-headers {
+  overflow-y: auto; padding: 10px 16px; background: var(--bg-app); gap: 2px;
+}
+.res-hdr-row { display: flex; gap: 8px; font-size: 12px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+.res-hdr-key { color: var(--jt-key); min-width: 180px; font-weight: 500; }
+.res-hdr-val { color: var(--text-secondary); word-break: break-all; }
+
+/* placeholder state */
+#res-placeholder {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 13px; flex-direction: column; gap: 8px;
+  background: var(--bg-app);
+}
+#res-placeholder .ph-icon { font-size: 32px; opacity: .4; }
+
+/* loading spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--post);
+  animation: spin .6s linear infinite;
+}
+
+/* ── UR API panel ───────────────────────────────────────── */
+#ur-panel {
+  display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 14px; background: var(--bg-panel);
+  border-bottom: 2px solid var(--get); flex-shrink: 0;
+}
+#ur-panel.open { display: flex; }
+#ur-panel input, #ur-panel select {
+  height: 28px; padding: 0 8px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--text-primary); font-size: 12px; outline: none;
+}
+#ur-panel input:focus, #ur-panel select:focus { border-color: var(--border-focus); }
+#ur-panel input::placeholder { color: var(--text-muted); }
+#ur-base { min-width: 190px; }
+#ur-domain, #ur-endpoint { min-width: 150px; cursor: pointer; }
+#ur-params { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ur-param-wrap { display: flex; align-items: center; gap: 4px; }
+.ur-param-wrap label { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+.ur-param-wrap input { min-width: 90px; }
+.ur-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+#ur-body-hint { font-size: 10px; color: var(--text-muted); font-style: italic; }
+#ur-load-btn {
+  height: 28px; padding: 0 14px; border-radius: var(--radius);
+  border: 1px solid var(--get); background: rgba(97,175,254,.1);
+  color: var(--get); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+#ur-load-btn:hover { background: rgba(97,175,254,.2); }
+#ur-toggle-btn {
+  height: 30px; padding: 0 10px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--text-secondary); font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+#ur-toggle-btn:hover { background: var(--bg-hover); }
+#ur-toggle-btn.active { border-color: var(--get); color: var(--get); background: rgba(97,175,254,.08); }
+
+/* adjust main height when ur-panel is open */
+#main { height: calc(100vh - var(--topbar-h)); transition: height .1s; }
+</style>
+</head>
+<body>
+
+<!-- ── Topbar ─────────────────────────────────────────────── -->
+<div id="topbar">
+  <div id="logo">REST<span>CLIENT</span></div>
+  <select id="method-select" class="method-get" onchange="onMethodChange(this)">
+    <option value="GET">GET</option>
+    <option value="POST">POST</option>
+    <option value="PUT">PUT</option>
+    <option value="PATCH">PATCH</option>
+    <option value="DELETE">DELETE</option>
+  </select>
+  <input id="url-input" type="text" placeholder="https://jsonplaceholder.typicode.com/posts"
+    onkeydown="if(event.key==='Enter') sendRequest()">
+  <button id="send-btn" onclick="sendRequest()">Send</button>
+  <button id="ur-toggle-btn" onclick="toggleUrPanel()" title="UR Robot API quick-select">UR API</button>
+  <button id="font-dec-btn" onclick="adjustFontSize(-1)" title="Decrease text size">A−</button>
+  <button id="font-inc-btn" onclick="adjustFontSize(1)" title="Increase text size">A+</button>
+  <button id="theme-btn" onclick="toggleTheme()" title="Toggle theme">☽</button>
+</div>
+
+<!-- ── UR API panel ───────────────────────────────────────── -->
+<div id="ur-panel">
+  <span class="ur-label">Robot URL</span>
+  <input id="ur-base" type="text" placeholder="http://192.168.1.100">
+  <span class="ur-label">Domain</span>
+  <select id="ur-domain" onchange="onUrDomainChange()">
+    <option value="">— select —</option>
+    <option>License</option>
+    <option>Program</option>
+    <option>Robotstate</option>
+    <option>System</option>
+  </select>
+  <span class="ur-label">Endpoint</span>
+  <select id="ur-endpoint" onchange="onUrEndpointChange()">
+    <option value="">— select domain first —</option>
+  </select>
+  <div id="ur-params"></div>
+  <span id="ur-body-hint"></span>
+  <button id="ur-load-btn" onclick="loadUrEndpoint()">Load →</button>
+</div>
+
+<!-- ── Main ──────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- History sidebar -->
+  <div class="sidebar" id="history-sidebar">
+    <div class="sidebar-title">
+      History
+      <button onclick="clearHistory()">Clear</button>
+    </div>
+    <div class="sidebar-body" id="history-list">
+      <div class="sidebar-empty">No requests yet.<br>Hit Send to start.</div>
+    </div>
+  </div>
+
+  <!-- Workspace -->
+  <div id="workspace">
+
+    <!-- Request panel -->
+    <div class="panel" id="req-panel">
+      <div class="tab-bar">
+        <button class="tab active" onclick="switchTab('req','headers',this)">Headers</button>
+        <button class="tab" onclick="switchTab('req','body',this)">Body</button>
+      </div>
+
+      <!-- Headers tab -->
+      <div class="tab-pane active" id="tab-headers">
+        <div id="headers-rows"></div>
+        <button id="add-header-btn" onclick="addHeaderRow()">+ Add Header</button>
+      </div>
+
+      <!-- Body tab -->
+      <div class="tab-pane" id="tab-body">
+        <textarea id="body-input" placeholder='{\n  "key": "value"\n}'></textarea>
+        <div id="body-hint">Body sent as-is. Add Content-Type header manually if needed.</div>
+      </div>
+    </div>
+
+    <!-- Response panel -->
+    <div class="panel" id="res-panel">
+      <!-- Placeholder (shown when no response yet) -->
+      <div id="res-placeholder">
+        <div class="ph-icon">⇄</div>
+        <div>Enter a URL and click Send</div>
+      </div>
+
+      <!-- Status bar + tabs (hidden until first response) -->
+      <div id="res-content" style="display:none; flex:1; flex-direction:column; overflow:hidden; display:none;">
+        <div id="res-statusbar">
+          <span id="res-status"></span>
+          <span id="res-time"></span>
+          <span id="res-type"></span>
+          <button id="copy-btn" onclick="copyResponse()" disabled>Copy</button>
+        </div>
+        <div class="tab-bar">
+          <button class="tab active" onclick="switchTab('res','res-body',this)">Body</button>
+          <button class="tab" onclick="switchTab('res','res-headers',this)">Headers</button>
+        </div>
+        <div class="tab-pane active" id="tab-res-body">
+          <pre id="res-body-pre"></pre>
+        </div>
+        <div class="tab-pane" id="tab-res-headers">
+          <div id="res-headers-list"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /workspace -->
+
+  <!-- Examples sidebar -->
+  <div class="sidebar" id="examples-panel">
+    <div class="sidebar-title">
+      Examples
+      <button onclick="saveCurrentRequest()">Save</button>
+    </div>
+    <div class="sidebar-body" id="collections-list"></div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ── State ──────────────────────────────────────────────────
+const state = {
+  history: [],
+  collections: [],
+  activeReqTab: 'headers',
+  activeResTab: 'res-body',
+  lastResponseText: '',
+};
+
+// ── Built-in collections ───────────────────────────────────
+const BUILTIN_COLLECTIONS = [
+  {
+    name: 'JSONPlaceholder',
+    items: [
+      { label: 'GET all posts',     method: 'GET',    url: 'https://jsonplaceholder.typicode.com/posts',    headers: [], body: '' },
+      { label: 'GET post by ID',    method: 'GET',    url: 'https://jsonplaceholder.typicode.com/posts/1',  headers: [], body: '' },
+      { label: 'GET users',         method: 'GET',    url: 'https://jsonplaceholder.typicode.com/users',    headers: [], body: '' },
+      { label: 'GET comments',      method: 'GET',    url: 'https://jsonplaceholder.typicode.com/comments?postId=1', headers: [], body: '' },
+      { label: 'POST create post',  method: 'POST',   url: 'https://jsonplaceholder.typicode.com/posts',
+        headers: [['Content-Type', 'application/json']],
+        body: '{\n  "title": "Hello World",\n  "body": "Testing POST",\n  "userId": 1\n}' },
+      { label: 'PUT replace post',  method: 'PUT',    url: 'https://jsonplaceholder.typicode.com/posts/1',
+        headers: [['Content-Type', 'application/json']],
+        body: '{\n  "id": 1,\n  "title": "Updated Title",\n  "body": "Full replace via PUT",\n  "userId": 1\n}' },
+      { label: 'PATCH update post', method: 'PATCH',  url: 'https://jsonplaceholder.typicode.com/posts/1',
+        headers: [['Content-Type', 'application/json']],
+        body: '{\n  "title": "Patched Title Only"\n}' },
+      { label: 'DELETE post',       method: 'DELETE', url: 'https://jsonplaceholder.typicode.com/posts/1',  headers: [], body: '' },
+    ]
+  }
+];
+
+// ── Init ───────────────────────────────────────────────────
+(function init() {
+  loadHistory();
+  renderHistory();
+  loadCollections();
+  renderCollections();
+  addHeaderRow('', '');
+  // Restore UR panel state
+  try {
+    const savedBase = localStorage.getItem('rc_ur_base');
+    if (savedBase) document.getElementById('ur-base').value = savedBase;
+    if (localStorage.getItem('rc_ur_open')) {
+      document.getElementById('ur-panel').classList.add('open');
+      document.getElementById('ur-toggle-btn').classList.add('active');
+    }
+  } catch (_) {}
+})();
+
+// ── Request execution ──────────────────────────────────────
+async function sendRequest() {
+  let url = document.getElementById('url-input').value.trim();
+  if (!url) { alert('Please enter a URL.'); return; }
+  if (!/^https?:\/\//i.test(url)) {
+    // Use http:// for private/local IPs, https:// for everything else
+    const isLocal = /^(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(url);
+    url = (isLocal ? 'http://' : 'https://') + url;
+  }
+
+  const method = document.getElementById('method-select').value;
+  const headers = getHeaders();
+  const bodyText = document.getElementById('body-input').value.trim();
+
+  const fetchOpts = { method, headers };
+  if (!['GET', 'DELETE'].includes(method) && bodyText) {
+    fetchOpts.body = bodyText;
+  }
+
+  // Show loading state
+  const sendBtn = document.getElementById('send-btn');
+  sendBtn.disabled = true;
+  showLoading();
+
+  const t0 = performance.now();
+  try {
+    const res = await fetch(url, fetchOpts);
+    const ms = Math.round(performance.now() - t0);
+    const resHeaders = {};
+    for (const [k, v] of res.headers.entries()) resHeaders[k] = v;
+    const bodyRaw = await res.text();
+    showResponse(res.status, res.statusText, resHeaders, bodyRaw, ms);
+    pushHistory({ method, url, headers, body: bodyText, status: res.status, ms });
+  } catch (err) {
+    showError(err);
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+// ── Loading state ──────────────────────────────────────────
+function showLoading() {
+  const ph = document.getElementById('res-placeholder');
+  ph.style.display = 'flex';
+  ph.innerHTML = '<div class="spinner"></div>';
+  document.getElementById('res-content').style.display = 'none';
+}
+
+// ── Show response ──────────────────────────────────────────
+function showResponse(status, statusText, resHeaders, bodyRaw, ms) {
+  document.getElementById('res-placeholder').style.display = 'none';
+  const rc = document.getElementById('res-content');
+  rc.style.display = 'flex';
+
+  // Status badge
+  const sc = statusClass(status);
+  const badge = document.getElementById('res-status');
+  badge.textContent = `${status} ${statusText}`;
+  badge.className = sc;
+
+  document.getElementById('res-time').textContent = `${ms} ms`;
+
+  // Detect body type, pretty-print if JSON
+  let displayBody = bodyRaw;
+  let typeLabel = 'TEXT';
+  try {
+    const parsed = JSON.parse(bodyRaw);
+    displayBody = JSON.stringify(parsed, null, 2);
+    typeLabel = 'JSON';
+  } catch (_) {
+    if (/<html/i.test(bodyRaw)) typeLabel = 'HTML';
+  }
+  document.getElementById('res-type').textContent = typeLabel;
+
+  state.lastResponseText = bodyRaw;
+  const pre = document.getElementById('res-body-pre');
+  pre.innerHTML = typeLabel === 'JSON' ? syntaxHighlight(displayBody) : escapeHtml(displayBody);
+
+  // Response headers
+  const hdrList = document.getElementById('res-headers-list');
+  hdrList.innerHTML = '';
+  for (const [k, v] of Object.entries(resHeaders)) {
+    const row = document.createElement('div');
+    row.className = 'res-hdr-row';
+    row.innerHTML = `<span class="res-hdr-key">${escapeHtml(k)}</span><span class="res-hdr-val">${escapeHtml(v)}</span>`;
+    hdrList.appendChild(row);
+  }
+
+  const copyBtn = document.getElementById('copy-btn');
+  copyBtn.disabled = false;
+  copyBtn.textContent = 'Copy';
+}
+
+function showError(err) {
+  document.getElementById('res-placeholder').style.display = 'none';
+  const rc = document.getElementById('res-content');
+  rc.style.display = 'flex';
+
+  const badge = document.getElementById('res-status');
+  badge.textContent = 'Error';
+  badge.className = 'err';
+  document.getElementById('res-time').textContent = '';
+  document.getElementById('res-type').textContent = '';
+
+  const urlVal = document.getElementById('url-input').value;
+  const isLocalIp = /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|localhost)/i.test(urlVal);
+  const corsHint = isLocalIp
+    ? `• Robot API does not send CORS headers — ask your UR firmware admin to enable CORS, or open this file directly in your browser (file://) rather than via a server\n• Wrong protocol — make sure the URL starts with http:// not https://`
+    : `• CORS policy blocking the request (server must send Access-Control-Allow-Origin header)\n• Tip: Try the built-in JSONPlaceholder examples (right sidebar) — they support CORS`;
+  let msg = `Network error: ${err.message}\n\nThis may be caused by:\n${corsHint}\n• Invalid or unreachable URL\n• Network connectivity issue`;
+  state.lastResponseText = msg;
+  const pre = document.getElementById('res-body-pre');
+  pre.innerHTML = escapeHtml(msg);
+  document.getElementById('res-headers-list').innerHTML = '';
+  document.getElementById('copy-btn').disabled = true;
+}
+
+// ── JSON syntax highlight ──────────────────────────────────
+function syntaxHighlight(json) {
+  return escapeHtml(json).replace(
+    /("(?:[^"\\]|\\.)*")(\s*:)|("(?:[^"\\]|\\.)*")|(true|false)|(null)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+    (_, key, colon, str, bool, nil, num) => {
+      if (key)  return `<span class="jt-key">${key}</span>${colon}`;
+      if (str)  return `<span class="jt-str">${str}</span>`;
+      if (bool) return `<span class="jt-bool">${bool}</span>`;
+      if (nil)  return `<span class="jt-null">${nil}</span>`;
+      if (num !== undefined) return `<span class="jt-num">${num}</span>`;
+      return _;
+    }
+  );
+}
+
+// ── Headers editor ─────────────────────────────────────────
+function addHeaderRow(key = '', value = '') {
+  const rows = document.getElementById('headers-rows');
+  const row = document.createElement('div');
+  row.className = 'hdr-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Header name" value="${escapeAttr(key)}">
+    <input type="text" placeholder="Value" value="${escapeAttr(value)}">
+    <button class="hdr-remove" onclick="this.parentElement.remove()" title="Remove">×</button>`;
+  rows.appendChild(row);
+}
+
+function getHeaders() {
+  const out = {};
+  document.querySelectorAll('.hdr-row').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const k = inputs[0].value.trim();
+    const v = inputs[1].value.trim();
+    if (k) out[k] = v;
+  });
+  return out;
+}
+
+function setHeaderRows(pairs) {
+  document.getElementById('headers-rows').innerHTML = '';
+  if (pairs && pairs.length) {
+    pairs.forEach(([k, v]) => addHeaderRow(k, v));
+  } else {
+    addHeaderRow('', '');
+  }
+}
+
+// ── Method color ───────────────────────────────────────────
+function onMethodChange(sel) {
+  sel.className = 'method-' + sel.value.toLowerCase();
+}
+
+// ── Tabs ───────────────────────────────────────────────────
+function switchTab(group, name, btn) {
+  const prefix = group === 'req' ? 'tab-' : 'tab-';
+  const paneId = group === 'req' ? `tab-${name}` : `tab-${name}`;
+  const container = group === 'req' ? document.getElementById('req-panel') : document.getElementById('res-panel');
+
+  container.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  container.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+  document.getElementById(paneId).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+// ── History ────────────────────────────────────────────────
+function pushHistory(entry) {
+  state.history.unshift(entry);
+  if (state.history.length > 20) state.history.length = 20;
+  renderHistory();
+  persistHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (!state.history.length) {
+    list.innerHTML = '<div class="sidebar-empty">No requests yet.<br>Hit Send to start.</div>';
+    return;
+  }
+  list.innerHTML = state.history.map((h, i) => `
+    <div class="hist-item" onclick="loadHistoryEntry(${i})" style="border-left-color:var(--${h.method.toLowerCase()})">
+      <div class="hi-method hi-${h.method.toLowerCase()}">${h.method} <span style="color:var(--text-muted);font-weight:400">${h.status || ''}</span></div>
+      <div class="hi-url" title="${escapeAttr(h.url)}">${escapeHtml(shortUrl(h.url))}</div>
+    </div>`).join('');
+}
+
+function loadHistoryEntry(idx) {
+  const h = state.history[idx];
+  if (!h) return;
+  document.getElementById('url-input').value = h.url;
+  const sel = document.getElementById('method-select');
+  sel.value = h.method;
+  onMethodChange(sel);
+  setHeaderRows(h.headers ? Object.entries(h.headers) : []);
+  document.getElementById('body-input').value = h.body || '';
+}
+
+function clearHistory() {
+  if (!state.history.length) return;
+  if (!confirm('Clear all history?')) return;
+  state.history = [];
+  renderHistory();
+  localStorage.removeItem('rc_history');
+}
+
+function persistHistory() {
+  const slim = state.history.map(h => ({
+    method: h.method, url: h.url, status: h.status, ms: h.ms,
+    headers: h.headers,
+    body: (h.body || '').slice(0, 10000),
+  }));
+  try { localStorage.setItem('rc_history', JSON.stringify(slim)); } catch (_) {}
+}
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem('rc_history');
+    if (raw) state.history = JSON.parse(raw);
+  } catch (_) {}
+}
+
+// ── Collections ────────────────────────────────────────────
+function loadCollections() {
+  state.collections = [...BUILTIN_COLLECTIONS];
+  try {
+    const saved = localStorage.getItem('rc_collections');
+    if (saved) {
+      const custom = JSON.parse(saved);
+      if (custom && custom.length) state.collections.push(...custom);
+    }
+  } catch (_) {}
+}
+
+function renderCollections() {
+  const list = document.getElementById('collections-list');
+  list.innerHTML = state.collections.map((coll, ci) => `
+    <details class="coll-group" open>
+      <summary>${escapeHtml(coll.name)}</summary>
+      ${coll.items.map((item, ii) => `
+        <div class="coll-item" onclick="loadExample(${ci},${ii})">
+          <span class="ci-method hi-${item.method.toLowerCase()}">${item.method}</span>
+          <span>${escapeHtml(item.label)}</span>
+        </div>`).join('')}
+    </details>`).join('');
+}
+
+function loadExample(ci, ii) {
+  const item = state.collections[ci].items[ii];
+  document.getElementById('url-input').value = item.url;
+  const sel = document.getElementById('method-select');
+  sel.value = item.method;
+  onMethodChange(sel);
+  setHeaderRows(item.headers && item.headers.length ? item.headers : []);
+  document.getElementById('body-input').value = item.body || '';
+  // Switch to body tab if there's a body
+  if (item.body) {
+    const tabs = document.querySelectorAll('#req-panel .tab');
+    switchTab('req', 'body', tabs[1]);
+  } else {
+    const tabs = document.querySelectorAll('#req-panel .tab');
+    switchTab('req', 'headers', tabs[0]);
+  }
+}
+
+function saveCurrentRequest() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) { alert('Enter a URL first.'); return; }
+  const label = prompt('Name for this request:', shortUrl(url));
+  if (!label) return;
+  const method = document.getElementById('method-select').value;
+  const headers = Object.entries(getHeaders());
+  const body = document.getElementById('body-input').value;
+  const item = { label, method, url, headers, body };
+
+  // Find or create "Saved" collection
+  let savedColl = state.collections.find(c => c.name === 'Saved');
+  if (!savedColl) {
+    savedColl = { name: 'Saved', items: [] };
+    state.collections.push(savedColl);
+  }
+  savedColl.items.push(item);
+
+  // Persist only custom collections (skip builtins)
+  const custom = state.collections.filter(c => c.name !== 'JSONPlaceholder');
+  try { localStorage.setItem('rc_collections', JSON.stringify(custom)); } catch (_) {}
+
+  renderCollections();
+}
+
+// ── Font size ──────────────────────────────────────────────
+(function initFontSize() {
+  try {
+    const saved = localStorage.getItem('rc_zoom');
+    if (saved) document.body.style.zoom = saved;
+  } catch (_) {}
+})();
+
+function adjustFontSize(delta) {
+  const current = parseFloat(document.body.style.zoom) || 1;
+  const next = Math.min(1.8, Math.max(0.7, Math.round((current + delta * 0.1) * 10) / 10));
+  document.body.style.zoom = next;
+  try { localStorage.setItem('rc_zoom', next); } catch (_) {}
+}
+
+// ── Theme ──────────────────────────────────────────────────
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  document.getElementById('theme-btn').textContent =
+    document.body.classList.contains('light') ? '☀' : '☽';
+}
+
+// ── Copy response ──────────────────────────────────────────
+function copyResponse() {
+  if (!state.lastResponseText) return;
+  navigator.clipboard.writeText(state.lastResponseText).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+  }).catch(() => alert('Copy failed. Select the text manually.'));
+}
+
+// ── Status class ───────────────────────────────────────────
+function statusClass(code) {
+  if (code >= 200 && code < 300) return 'ok';
+  if (code >= 300 && code < 400) return 'redir';
+  return 'err';
+}
+
+// ── UR Robot API ───────────────────────────────────────────
+const UR_APIS = {
+  License: { endpoints: [
+    { label: 'Check license',  method: 'GET', path: '/license/v1/license/{vendor_id}/{product_code}',
+      pathParams: ['vendor_id', 'product_code'], body: '', bodyHint: '' },
+  ]},
+  Program: { endpoints: [
+    { label: 'Get program state',       method: 'GET', path: '/program/v1/state',  pathParams: [], body: '', bodyHint: '' },
+    { label: 'Set program state',       method: 'PUT', path: '/program/v1/state',  pathParams: [],
+      body: '{\n  "action": "PLAY"\n}', bodyHint: 'action: PLAY | PAUSE | RESUME | STOP' },
+    { label: 'Get loaded program name', method: 'GET', path: '/program/v1/loaded', pathParams: [], body: '', bodyHint: '' },
+    { label: 'Load program by name',    method: 'PUT', path: '/program/v1/loaded', pathParams: [],
+      body: '{\n  "name": "my_program.urp"\n}', bodyHint: '' },
+  ]},
+  Robotstate: { endpoints: [
+    { label: 'Set robot state', method: 'PUT', path: '/robotstate/v1/state', pathParams: [],
+      body: '{\n  "action": "POWER_ON"\n}',
+      bodyHint: 'action: POWER_ON | POWER_OFF | BRAKE_RELEASE | UNLOCK_PROTECTIVE_STOP | RESTART_SAFETY' },
+    { label: 'Get safety mode', method: 'GET', path: '/robotstate/v1/safetymode', pathParams: [], body: '', bodyHint: '' },
+    { label: 'Get robot mode',  method: 'GET', path: '/robotstate/v1/robotmode',  pathParams: [], body: '', bodyHint: '' },
+  ]},
+  System: { endpoints: [
+    { label: 'Get system time',      method: 'GET', path: '/system/v1/system-time',     pathParams: [], body: '', bodyHint: '' },
+    { label: 'Set system time',      method: 'PUT', path: '/system/v1/system-time',     pathParams: [],
+      body: '{\n  "time": "2024-01-01T00:00:00Z"\n}', bodyHint: 'RFC-3339 / ISO-8601 format' },
+    { label: 'Get operational mode', method: 'GET', path: '/system/v1/operationalmode', pathParams: [], body: '', bodyHint: '' },
+    { label: 'Get control mode',     method: 'GET', path: '/system/v1/controlmode',     pathParams: [], body: '', bodyHint: '' },
+  ]},
+};
+
+function toggleUrPanel() {
+  const panel = document.getElementById('ur-panel');
+  const btn   = document.getElementById('ur-toggle-btn');
+  const open  = panel.classList.toggle('open');
+  btn.classList.toggle('active', open);
+  try { localStorage.setItem('rc_ur_open', open ? '1' : ''); } catch (_) {}
+}
+
+function onUrDomainChange() {
+  const domain = document.getElementById('ur-domain').value;
+  const epSel  = document.getElementById('ur-endpoint');
+  document.getElementById('ur-params').innerHTML = '';
+  document.getElementById('ur-body-hint').textContent = '';
+  if (!domain || !UR_APIS[domain]) {
+    epSel.innerHTML = '<option value="">— select domain first —</option>';
+    return;
+  }
+  epSel.innerHTML = '<option value="">— select endpoint —</option>' +
+    UR_APIS[domain].endpoints.map((ep, i) =>
+      `<option value="${i}">${ep.method} ${ep.label}</option>`
+    ).join('');
+}
+
+function onUrEndpointChange() {
+  const domain = document.getElementById('ur-domain').value;
+  const idx    = document.getElementById('ur-endpoint').value;
+  const params = document.getElementById('ur-params');
+  const hint   = document.getElementById('ur-body-hint');
+  params.innerHTML = '';
+  hint.textContent = '';
+  if (!domain || idx === '') return;
+  const ep = UR_APIS[domain].endpoints[idx];
+  if (!ep) return;
+  hint.textContent = ep.bodyHint || '';
+  if (ep.pathParams && ep.pathParams.length) {
+    ep.pathParams.forEach(p => {
+      const wrap = document.createElement('div');
+      wrap.className = 'ur-param-wrap';
+      wrap.innerHTML = `<label>${escapeHtml(p)}</label><input type="text" id="urp-${escapeAttr(p)}" placeholder="${escapeAttr(p)}">`;
+      params.appendChild(wrap);
+    });
+  }
+}
+
+function loadUrEndpoint() {
+  const domain = document.getElementById('ur-domain').value;
+  const idx    = document.getElementById('ur-endpoint').value;
+  if (!domain || idx === '') { alert('Select a domain and endpoint first.'); return; }
+  const ep   = UR_APIS[domain].endpoints[idx];
+  const base = document.getElementById('ur-base').value.trim().replace(/\/$/, '');
+  try { localStorage.setItem('rc_ur_base', base); } catch (_) {}
+
+  let path = ep.path;
+  if (ep.pathParams && ep.pathParams.length) {
+    ep.pathParams.forEach(p => {
+      const val = (document.getElementById(`urp-${p}`) || {}).value || `{${p}}`;
+      path = path.replace(`{${p}}`, encodeURIComponent(val));
+    });
+  }
+
+  const url = base + '/universal-robots/robot-api' + path;
+  const sel = document.getElementById('method-select');
+  sel.value = ep.method;
+  onMethodChange(sel);
+  document.getElementById('url-input').value = url;
+  document.getElementById('body-input').value = ep.body || '';
+
+  // Auto-set Content-Type for endpoints with a JSON body
+  if (ep.body) {
+    const existing = getHeaders();
+    if (!existing['Content-Type'] && !existing['content-type']) {
+      setHeaderRows([['Content-Type', 'application/json']]);
+    }
+  } else {
+    setHeaderRows([]);
+  }
+
+  const reqTabs = document.querySelectorAll('#req-panel .tab');
+  if (ep.body) {
+    switchTab('req', 'body', reqTabs[1]);
+  } else {
+    switchTab('req', 'headers', reqTabs[0]);
+  }
+}
+
+// ── Utilities ──────────────────────────────────────────────
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escapeAttr(s) {
+  return String(s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function shortUrl(url) {
+  try {
+    const u = new URL(url);
+    return (u.pathname + u.search).slice(0, 40) || u.hostname;
+  } catch (_) { return url.slice(0, 40); }
+}
+</script>
+</body>
+</html>
